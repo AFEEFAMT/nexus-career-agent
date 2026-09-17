@@ -1,122 +1,380 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  apiRequest,
+  clearToken,
+  getToken,
+} from "./api/api";
+
+import {
+  Alert,
+  SuccessAlert,
+} from "./components/common/Alert";
+
+import Loader from "./components/common/Loader";
+
+import Header from "./components/layout/Header";
+import Sidebar from "./components/layout/Sidebar";
+
+import AgentPage from "./pages/AgentPage";
+import AuthPage from "./pages/AuthPage";
+import BriefingPage from "./pages/BriefingPage";
+import MatchesPage from "./pages/MatchesPage";
+import OverviewPage from "./pages/OverviewPage";
+import ShortlistPage from "./pages/ShortlistPage";
+
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [
+    tokenPresent,
+    setTokenPresent,
+  ] = useState(
+    Boolean(getToken()),
+  );
+
+  const [user, setUser] =
+    useState(null);
+
+  const [
+    activeTab,
+    setActiveTab,
+  ] = useState("Overview");
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [message, setMessage] =
+    useState("");
+
+  const [error, setError] =
+    useState("");
+
+  const [resumes, setResumes] =
+    useState([]);
+
+  const [
+    selectedResume,
+    setSelectedResume,
+  ] = useState(null);
+
+  const [matches, setMatches] =
+    useState([]);
+
+  const [
+    shortlist,
+    setShortlist,
+  ] = useState([]);
+
+  const [
+    briefings,
+    setBriefings,
+  ] = useState([]);
+
+
+  useEffect(() => {
+    if (!tokenPresent) {
+      return;
+    }
+
+    initialize();
+  }, [tokenPresent]);
+
+
+  async function initialize() {
+    try {
+      setLoading(true);
+
+      setError("");
+
+      const [
+        me,
+        resumeData,
+        shortlistData,
+        briefingData,
+      ] = await Promise.all([
+        apiRequest("/auth/me"),
+
+        apiRequest("/resumes"),
+
+        apiRequest(
+          "/shortlist",
+        ),
+
+        apiRequest(
+          "/briefings",
+        ),
+      ]);
+
+      setUser(me);
+
+      setResumes(
+        resumeData || [],
+      );
+
+      setShortlist(
+        shortlistData || [],
+      );
+
+      setBriefings(
+        briefingData || [],
+      );
+
+      if (resumeData?.length) {
+        const latest =
+          resumeData[0];
+
+        setSelectedResume(
+          latest,
+        );
+
+        try {
+          const existingMatches =
+            await apiRequest(
+              `/matches/${latest.id}`,
+            );
+
+          setMatches(
+            existingMatches ||
+              [],
+          );
+        } catch {
+          setMatches([]);
+        }
+      } else {
+        setSelectedResume(
+          null,
+        );
+
+        setMatches([]);
+      }
+    } catch (err) {
+      if (!getToken()) {
+        setTokenPresent(
+          false,
+        );
+      }
+
+      setError(
+        err.message,
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+
+  async function refreshShortlist() {
+    const data =
+      await apiRequest(
+        "/shortlist",
+      );
+
+    setShortlist(
+      data || [],
+    );
+
+    return data || [];
+  }
+
+
+  async function refreshBriefings() {
+    const data =
+      await apiRequest(
+        "/briefings",
+      );
+
+    setBriefings(
+      data || [],
+    );
+
+    return data || [];
+  }
+
+
+  function logout() {
+    clearToken();
+
+    setTokenPresent(false);
+
+    setUser(null);
+
+    setResumes([]);
+
+    setMatches([]);
+
+    setShortlist([]);
+
+    setBriefings([]);
+
+    setSelectedResume(null);
+
+    setActiveTab(
+      "Overview",
+    );
+  }
+
+
+  if (!tokenPresent) {
+    return (
+      <AuthPage
+        onAuthenticated={() =>
+          setTokenPresent(
+            true,
+          )
+        }
+      />
+    );
+  }
+
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="app-shell">
+      <Sidebar
+        user={user}
+        activeTab={activeTab}
+        setActiveTab={
+          setActiveTab
+        }
+        logout={logout}
+      />
 
-      <div className="ticks"></div>
+      <main className="main-content">
+        <Header
+          activeTab={
+            activeTab
+          }
+        />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        {error && (
+          <Alert
+            text={error}
+            onClose={() =>
+              setError("")
+            }
+          />
+        )}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        {message && (
+          <SuccessAlert
+            text={message}
+            onClose={() =>
+              setMessage("")
+            }
+          />
+        )}
+
+        {loading ? (
+          <Loader />
+        ) : (
+          <>
+            {activeTab ===
+              "Overview" && (
+              <OverviewPage
+                resumes={
+                  resumes
+                }
+                matches={
+                  matches
+                }
+                shortlist={
+                  shortlist
+                }
+                briefings={
+                  briefings
+                }
+                onResumeUploaded={
+                  initialize
+                }
+                onGoToMatches={() =>
+                  setActiveTab(
+                    "Matches",
+                  )
+                }
+              />
+            )}
+
+            {activeTab ===
+              "Matches" && (
+              <MatchesPage
+                resumes={
+                  resumes
+                }
+                selectedResume={
+                  selectedResume
+                }
+                setSelectedResume={
+                  setSelectedResume
+                }
+                matches={
+                  matches
+                }
+                setMatches={
+                  setMatches
+                }
+                shortlist={
+                  shortlist
+                }
+                refreshShortlist={
+                  refreshShortlist
+                }
+                setError={
+                  setError
+                }
+                setMessage={
+                  setMessage
+                }
+              />
+            )}
+
+            {activeTab ===
+              "Shortlist" && (
+              <ShortlistPage
+  shortlist={
+    shortlist
+  }
+  briefings={
+    briefings
+  }
+  refreshShortlist={
+    refreshShortlist
+  }
+  setError={
+    setError
+  }
+  setMessage={
+    setMessage
+  }
+/>
+            )}
+
+            {activeTab ===
+              "Agent" && (
+              <AgentPage />
+            )}
+
+            {activeTab ===
+              "Briefing" && (
+              <BriefingPage
+                briefings={
+                  briefings
+                }
+                refreshBriefings={
+                  refreshBriefings
+                }
+                setBriefings={
+                  setBriefings
+                }
+              />
+            )}
+          </>
+        )}
+      </main>
+    </div>
+  );
 }
 
-export default App
+
+export default App;
