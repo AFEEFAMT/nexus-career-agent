@@ -238,7 +238,7 @@ def ingest_jobs(
 
         if failed_run is not None:
             failed_run.status = "failed"
-            failed_run.error = str(exc)
+            failed_run.error_message = str(exc)
             failed_run.completed_at = (
                 datetime.now(
                     timezone.utc

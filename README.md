@@ -125,7 +125,9 @@ nexus/
 │   │   ├── services/
 │   │   │   └── scraper/
 │   │   └── utils/
-│   ├── alembic/
+│   ├── migrations/
+│   ├── scripts/
+│   │   └── scrape_jobs.py
 │   ├── requirements.txt
 │   └── .env
 │
@@ -419,7 +421,21 @@ From `backend/`:
 alembic upgrade head
 ```
 
-### 6. Start the backend
+### 6. Populate jobs from the two public sources
+
+From `backend/`, run the scraper pipeline:
+
+```bash
+python -m scripts.scrape_jobs --source all --max-jobs 10 --max-pages 2
+```
+
+This command scrapes Y Combinator Jobs and Wellfound, deduplicates and stores the listings, generates missing job embeddings, and runs structured extraction.
+
+The limits are intentionally small by default for a local/demo run. They can be changed with `--max-jobs` and `--max-pages`.
+
+If a free Gemini model is temporarily rate-limited or unavailable, the scraper/ingestion work is still persisted and the extraction layer reports the failure instead of crashing the application.
+
+### 7. Start the backend
 
 ```bash
 uvicorn app.main:app --reload
@@ -431,7 +447,7 @@ Backend:
 http://127.0.0.1:8000
 ```
 
-### 7. Frontend setup
+### 8. Frontend setup
 
 Open another terminal:
 
